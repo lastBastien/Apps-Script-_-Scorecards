@@ -1,0 +1,29 @@
+function sheetExport() {
+  // file copy to drive and save to PDF
+  // temp files ID 1dsoX1CkLndKwACzumtEJokKQ5v08YqnB
+  // PDF folder 1FzYaROAx1brwOWJy5h1SopocDe482U-p
+
+  const SS = SpreadsheetApp.getActiveSpreadsheet();
+  let sheets = SS.getSheets();
+  let sh1 = SS.getSheetByName('Call Review Scorecard');
+  let sheetName = sh1.getName();
+
+  let name = sh1.getRange("B3").getValue();
+  let date = sh1.getRange('B4').getDisplayValue();
+  const tempFolder = DriveApp.getFolderById("1dsoX1CkLndKwACzumtEJokKQ5v08YqnB");
+  const pdfFolder = DriveApp.getFolderById("1FzYaROAx1brwOWJy5h1SopocDe482U-p");
+    //move to temp and save Scorecard sheet only to PDF
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].getSheetName() !== sheetName) {
+      sheets[i].hideSheet()
+    }
+  }
+  var newFile = DriveApp.createFile(SS.getBlob());
+  for (var i = 0; i < sheets.length; i++) {
+    sheets[i].showSheet()
+  }
+  newFile.moveTo(tempFolder);
+  const tempFile = newFile.makeCopy((name + '_' +date),tempFolder);
+  const pdfContent = tempFile.getAs(MimeType.PDF);
+  pdfFolder.createFile(pdfContent);
+  };
