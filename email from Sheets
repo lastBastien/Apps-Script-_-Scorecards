@@ -1,49 +1,45 @@
 function emailSend() {
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Sheet1');
-  const sheet2 = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Learning Opportunities');
-    let row = sheet2.getActiveCell().getRow();
-    let name = sheet2.getRange(row,1).getDisplayValue();
-    let lastCol = sheet2.getLastColumn();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Call Review Scorecard');
+  const sheet2 = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Rollup Data');
+    let col = sheet.getActiveCell().getColumn();
+    let name = sheet.getRange(3,2).getDisplayValue();
+    let call = sheet.getRange(5,2).getValue();
+    let lastRow = ss.getRangeByName('dataInput').getLastRow();
     let arrayQu = [];
-    let arrayNo = [];
+    let arraySL = [];
     let arrayGuru = [];
+    let arrayLearning = [];
 
   // loop to separate quotes and notes from the cell
-  for (let i=3; i<lastCol-1;i++){
-    if (sheet2.getRange(row,[i]).getValue()!==''){
-      let vals = sheet2.getRange(row,[i]).getValue();
-      let regexQuotes = /\"([^"]+)\"/g;
-      let regexNotes = /\[\w([^\[]+)\]/g;
-      let quote = vals.match(regexQuotes);
-      let notes = vals.match(regexNotes);
-      arrayNo.push(notes);
-      arrayQu.push(quote);
-        if (notes!==null){
-          arrayNo.push(notes);
-        }
-        if (quote !==null){
-      arrayQu.push(quote);
-        }
+  for (let i=2; i<=lastRow; i++){
+    if (sheet.getRange([i],2).getValue()=='No'){
+      let timeStamp = sheet.getRange([i+1],2).getValue();
+      let suggLang = sheet.getRange([i+2],2).getValue();
+      let link = sheet.getRange([i+3],2).getDisplayValue();
+      arrayQu.push(timeStamp);
+      arraySL.push(suggLang);
+      arrayGuru.push(link);
     }
   };
-  for (let j=6; j<lastCol; j++){
-      let link = sheet2.getRange(row,[j]).getValue();
-      arrayGuru.push(link);
-      };
   
-  Logger.log(arrayQu);
-  const TEMPLATE = HtmlService.createTemplateFromFile('emailTest');
+  Logger.log('arrayQu = ' + arrayGuru);
+  const TEMPLATE = HtmlService.createTemplateFromFile('emailTemplate');
     
         // pulls the first name from column 1 based on the active cell
     TEMPLATE.name = name.split(' ')[0];
         // pulls quotes and notes from the applicable array
-    if (arrayNo){
-      TEMPLATE.quote1 = (arrayQu[0]+' '+arrayNo[0]+' '+arrayGuru[0]);
-      TEMPLATE.quote2 = (arrayQu[1]+' '+arrayNo[1]+' '+arrayGuru[1]);
-      TEMPLATE.quote3 = (arrayQu[2]+' '+arrayNo[2]+' '+arrayGuru[2]);
+    for (let j=0;j<=arrayQu.length;j++){
+      if (arrayQu[j]!==null){
+        let learningOpportunity = (arrayQu[j] + ' ' + arraySL[j] + ' ' + arrayGuru[j]);
+        arrayLearning.push(learningOpportunity);
+      }
     }
-    //TEMPLATE.quote = (arrayQu[0]+' '+arrayNo[0]);
+    TEMPLATE.quotes = (arrayLearning);
+    TEMPLATE.call = call;
+    TEMPLATE.number = arrayQu.length;
+    Logger.log('LO ARRAY lenght = ' + arrayLearning.length);
     //TEMPLATE.note = arrayNo;
 
     const message = TEMPLATE.evaluate().getContent();
@@ -55,9 +51,8 @@ function emailSend() {
         name: 'QA',
         from: aliases[0],
         htmlBody: message,
-        //attachments: [SpreadsheetApp.getActiveSpreadsheet().getAs(MimeType.PDF).setName("Call Review Scorecard")]
+        attachments: [SpreadsheetApp.getActiveSpreadsheet().getAs(MimeType.PDF).setName(name + '_' + "Call Review Scorecard")]
       }
       );
-    let sendConfirm = sheet2.getActiveCell();
-      sendConfirm.setValue('EMAIL SENT');
+    
   }
