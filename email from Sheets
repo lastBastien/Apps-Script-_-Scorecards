@@ -1,9 +1,9 @@
 function emailSend() {
+  confirmationPopup();
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Call Review Scorecard');
-  const sheet2 = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Rollup Data');
-    let col = sheet.getActiveCell().getColumn();
+    let user = Session.getActiveUser().getEmail();
     let name = sheet.getRange(3,2).getDisplayValue();
     let call = sheet.getRange(5,2).getValue();
     let lastRow = ss.getRangeByName('dataInput').getLastRow();
@@ -24,7 +24,6 @@ function emailSend() {
     }
   };
   
-  Logger.log('arrayQu = ' + arrayGuru);
   const TEMPLATE = HtmlService.createTemplateFromFile('emailTemplate');
     
         // pulls the first name from column 1 based on the active cell
@@ -39,20 +38,49 @@ function emailSend() {
     TEMPLATE.quotes = (arrayLearning);
     TEMPLATE.call = call;
     TEMPLATE.number = arrayQu.length;
-    Logger.log('LO ARRAY lenght = ' + arrayLearning.length);
-    //TEMPLATE.note = arrayNo;
 
     const message = TEMPLATE.evaluate().getContent();
 
     let aliases = GmailApp.getAliases(); 
       Logger.log(aliases); 
       Logger.log(name);
-      GmailApp.sendEmail('sebastian.burns@guildeducation.com', 'Email Test', "",{
+      GmailApp.sendEmail(user, 'Email Test', "",{
         name: 'QA',
         from: aliases[0],
         htmlBody: message,
         attachments: [SpreadsheetApp.getActiveSpreadsheet().getAs(MimeType.PDF).setName(name + '_' + "Call Review Scorecard")]
-      }
-      );
+      });
+      sheet.getRange('D5').setValue('Email Sent');
+      
+
+  function confirmationPopup() {
+      let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Call Review Scorecard');
+      let ui = SpreadsheetApp.getUi();
+      let coachName =  sheet.getRange(3,2).getDisplayValue();
+
+    if (sheet.getRange('D5').getValue() == 'Email Sent'){ //checks for 'email sent' marker to prevent duplicates
+      let response = ui.alert(
+    '⚠️ The email for '+coachName+' has already been sent',
+    'Do you want to override and send again?',
+      ui.ButtonSet.YES_NO);{
+      
+    if (response == ui.Button.NO) { //choosing not to override action will cancel the script
+      throw new Error("action cancelled");
+      }else if (response == ui.Button.YES){ //choosing to override proceeds as normal, as if no email was sent
+      
+      let response = ui.alert(
+    '⚠️ Please confirm you want to send this email to self ',
+    'Are you sure you want to compile and send the email for '+coachName+'?',
+      ui.ButtonSet.YES_NO);{
+      
+    if (response == ui.Button.NO) {
+      throw new Error("recheck");
+      }else if (response == ui.Button.YES){
+        return;
+        }
+      }};
+      }};
+  }
+      
     
   }
