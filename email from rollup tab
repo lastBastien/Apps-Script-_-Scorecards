@@ -4,11 +4,10 @@ function emailSend() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Call Review Scorecard');
   const SHEET2 = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Rollup Data');
-    let activeRow = SHEET2.getActiveRange().getRow()
+    let activeRow = SHEET2.getActiveRange().getRow();
     let user = Session.getActiveUser().getEmail();
     let name = SHEET2.getRange(activeRow,4).getValue();
     let call = SHEET2.getRange(activeRow,6).getDisplayValue();
-    let lastRow = ss.getRangeByName('dataInput').getLastRow();
     let lastCol = SHEET2.getLastColumn();
     let arrayQu = [];
     let arraySL = [];
@@ -62,10 +61,23 @@ function emailSend() {
 
   function confirmationPopup() {
       let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Call Review Scorecard');
+      let SHEET2 = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Rollup Data')
       let ui = SpreadsheetApp.getUi();
-      let coachName =  sheet.getRange(3,2).getDisplayValue();
+      let activeRow = SHEET2.getActiveRange().getRow();
+      let coachName =  SHEET2.getRange(activeRow,4).getDisplayValue();
 
-    if (sheet.getActiveCell().getValue() == 'Email Sent'){ //checks for 'email sent' marker to prevent duplicates
+    if (sheet.getActiveCell().getValue() == ''){
+      let response = ui.alert(
+    '⚠️ Please confirm you want to send this email to self ',
+    'Are you sure you want to compile and send the email for '+coachName+'?',
+      ui.ButtonSet.YES_NO);{
+      
+    if (response == ui.Button.NO) {
+      throw new Error("recheck");
+      }else if (response == ui.Button.YES){
+        return;
+        }
+      }} else if (sheet.getActiveCell().getValue() == 'Email Sent'){ //checks for 'email sent' marker to prevent duplicates
       let response = ui.alert(
     '⚠️ The email for '+coachName+' has already been sent',
     'Do you want to override and send again?',
@@ -88,5 +100,4 @@ function emailSend() {
       }};
       }};
   }     
-    
-  }
+}
