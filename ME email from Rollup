@@ -1,0 +1,104 @@
+function emailSend() {
+  confirmationPopup();
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Call Review Scorecard');
+  const SHEET2 = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Rollup Data');
+    let activeRow = SHEET2.getActiveRange().getRow();
+    let user = Session.getActiveUser().getEmail();
+    let name = SHEET2.getRange(activeRow,4).getValue();
+    let call = SHEET2.getRange(activeRow,6).getDisplayValue();
+    let lastCol = SHEET2.getLastColumn();
+    let arrayQu = [];
+    let arraySL = [];
+    let arrayGuru = [];
+    let arrayLearning = [];
+
+  // loop to separate quotes and notes from the cell
+  for (let i=2; i<=lastCol; i++){
+    if (SHEET2.getRange(activeRow,[i]).getValue()==='No'){
+      let timeStamp = SHEET2.getRange(activeRow,[i+1]).getValue();
+      let suggLang = SHEET2.getRange(activeRow,[i+2]).getValue();
+      let link = SHEET2.getRange(activeRow,[i+3]).getDisplayValue();
+        if (timeStamp !== ''){
+      arrayQu.push(timeStamp);}
+        if (suggLang !== ''){
+      arraySL.push(suggLang);}
+        if (link !== ''){
+      arrayGuru.push(link);}
+    }
+  };
+  Logger.log(arraySL);
+  const TEMPLATE = HtmlService.createTemplateFromFile('emailTemplate');
+    
+        // pulls the first name from column 1 based on the active cell
+    TEMPLATE.name = name.split(' ')[0];
+        // pulls quotes and notes from the applicable array
+    for (let j=0;j<arrayQu.length;j++){
+      if (arrayQu[j]!==null){
+        let learningOpportunity = (arrayQu[j] +  ' In order to support you, we have provided an example of ways to rephrase this language. Please review this option and connect with your manager if you have any questions. ' +arraySL[j]+' Please review this resource for more information: '+ arrayGuru[j]+'.');
+        arrayLearning.push(learningOpportunity);
+      }
+    }
+    Logger.log(arrayLearning);
+    TEMPLATE.quotes = (arrayLearning);
+    TEMPLATE.call = call;
+    TEMPLATE.number = arrayQu.length;
+
+    const message = TEMPLATE.evaluate().getContent();
+
+    let aliases = GmailApp.getAliases(); 
+      Logger.log(aliases); 
+      Logger.log(name);
+      GmailApp.sendEmail(user, '<Alert> Learning Opportunity', "",{
+        name: 'QA',
+        from: aliases[0],
+        htmlBody: message,
+        //attachments: [SpreadsheetApp.getActiveSpreadsheet().getAs(MimeType.PDF).setName(name + '_' + "Call Review Scorecard")]
+      });
+      sheet.getActiveCell().setValue('Email Sent');
+      sheet.getActiveCell().offset(0,1).setValue(Utilities.formatDate(new Date(), "UTC+8", "MM-dd-yyyy"));
+      
+
+  function confirmationPopup() {
+      let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Call Review Scorecard');
+      let SHEET2 = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Rollup Data')
+      let ui = SpreadsheetApp.getUi();
+      let activeRow = SHEET2.getActiveRange().getRow();
+      let coachName =  SHEET2.getRange(activeRow,4).getDisplayValue();
+
+    if (sheet.getActiveCell().getValue()){
+      let response = ui.alert(
+    '⚠️ Please confirm you want to send this email to self ',
+    'Are you sure you want to compile and send the email for '+coachName+'?',
+      ui.ButtonSet.YES_NO);{
+      
+    if (response == ui.Button.NO) {
+      throw new Error("action cancelled");
+      }else if (response == ui.Button.YES){
+        return;
+        }
+      }} else if (sheet.getActiveCell().getValue() == 'Email Sent'){ //checks for 'email sent' marker to prevent duplicates
+      let response = ui.alert(
+    '⚠️ The email for '+coachName+' has already been sent',
+    'Do you want to override and send again?',
+      ui.ButtonSet.YES_NO);{
+      
+    if (response == ui.Button.NO) { //choosing not to override action will cancel the script
+      throw new Error("action cancelled");
+      }else if (response == ui.Button.YES){ //choosing to override proceeds as normal, as if no email was sent
+      
+      let response = ui.alert(
+    '⚠️ Please confirm you want to send this email to self ',
+    'Are you sure you want to compile and send the email for '+coachName+'?',
+      ui.ButtonSet.YES_NO);{
+      
+    if (response == ui.Button.NO) {
+      throw new Error("action cancelled");
+      }else if (response == ui.Button.YES){
+        return;
+        }
+      }};
+      }};
+  }     
+}
