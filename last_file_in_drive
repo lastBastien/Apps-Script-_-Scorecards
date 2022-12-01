@@ -1,0 +1,19 @@
+function lastFile() {
+  
+  var lastUpdatedFile = null;
+  let fileSource = DriveApp.getFolderById('1FzYaROAx1brwOWJy5h1SopocDe482U-p'); //Folder to look for the files in
+  let file = fileSource.getFiles();
+    while(file.hasNext()){
+    if(!lastUpdatedFile){ //Checks if we didn't assign anything to lastUpdatedFile
+      lastUpdatedFile = file.next();
+    }else{
+      var currentFile = file.next();
+      //lastUpdatedFile is older than the current file
+      //set lastUpdatedFile to the current file
+      if(lastUpdatedFile.getLastUpdated() < currentFile.getLastUpdated()){
+        lastUpdatedFile = currentFile;
+      }
+    }
+  }
+  Logger.log(lastUpdatedFile.getUrl());
+}
