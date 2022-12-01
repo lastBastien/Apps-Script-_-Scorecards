@@ -1,7 +1,13 @@
 function lastFile() {
   
+  let sheet = SpreadsheetApp.openById('18i4WRZR3-egRgg6SPdZAdvvIBWBDctdKnaUhoobObSg')
+    .getSheetByName('Raw Rollup Data');
+  let headers = sheet.getRange(1,1,1, sheet.getLastColumn()).getValues();
+  let linkCol = headers[0].indexOf('Scorecard Link')+1;
+  let lastRow = sheet.getLastRow();
+
   var lastUpdatedFile = null;
-  let fileSource = DriveApp.getFolderById('1FzYaROAx1brwOWJy5h1SopocDe482U-p'); //Folder to look for the files in
+  let fileSource = DriveApp.getFolderById('1FzYaROAx1brwOWJy5h1SopocDe482U-p');
   let file = fileSource.getFiles();
     while(file.hasNext()){
     if(!lastUpdatedFile){ //Checks if we didn't assign anything to lastUpdatedFile
@@ -15,5 +21,7 @@ function lastFile() {
       }
     }
   }
-  Logger.log(lastUpdatedFile.getUrl());
+  let pdfLink = lastUpdatedFile.getUrl();
+  //Logger.log(lastUpdatedFile.getUrl());
+  sheet.getRange(lastRow,linkCol).setValue(pdfLink);
 }
