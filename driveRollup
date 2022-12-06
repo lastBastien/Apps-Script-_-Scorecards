@@ -1,0 +1,40 @@
+function masterRollup() {
+ 
+ const SS = SpreadsheetApp.getActiveSpreadsheet();
+ const SS2 = SpreadsheetApp.openById("18i4WRZR3-egRgg6SPdZAdvvIBWBDctdKnaUhoobObSg") //ID for Rollup Data Master
+ const SH1 = SS.getSheetByName("Member Support Call Review Scorecard");
+ const SH2 = SS2.getSheetByName("Raw Rollup Data");
+ let lastRow = SS.getRangeByName('dataInput').getLastRow();
+ let lastCol = SS.getRangeByName('dataInput').getLastColumn();
+ let lastRowRU = SH2.getLastRow();
+ const REVIEW_DATE = new Date().toLocaleDateString();
+
+   const USER = Session.getActiveUser().getEmail();
+    let userName = USER.split('@')[0];
+    let firstName = userName.split('.')[0];
+    let lastName = userName.split('.')[1];
+    let capFirst = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+    let capLast = lastName.charAt(0).toUpperCase() + lastName.slice(1);
+      Logger.log(capFirst+" "+capLast);
+
+    //sets date the review was completed
+  SH2.getRange(lastRowRU+1,1).activate().setValue(REVIEW_DATE);
+    //sets QAA name to the active user of the sheet
+  SH2.getRange(lastRowRU+1,2).activate().setValue(capFirst+" "+capLast);
+
+  //loops through to get the CONLUMN number. Not essential right now because we only have 1 column to sort
+for (let i=2; i<=lastCol;i++) { // loop through columns minus the definitions
+
+    //Loops through to get the ROW number
+  for (let j=3; j<=lastRow;j++) {  //loop through rows minus the first 5 header rows
+   //Logger.log('[j] value is ' + j);
+    let tempText = SH1.getRange([j],[i]).getDisplayValues();
+      //Logger.log('tempText value is ' + tempText);
+  //copy to RollUp tab and move to next BLANK cell. It will overwrite data without this command
+    if ((SH2.getRange(lastRowRU+1,[j]).getValue())===''){
+        //Logger.log('text marker is '+ (SH2.getRange(lastRowRU+1,[j]-5).getValue()));
+        SH2.getRange(lastRowRU+1,[j]).activate().setValue(tempText);
+      
+    }
+  }}
+};
