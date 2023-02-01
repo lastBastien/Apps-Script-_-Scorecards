@@ -1,64 +1,118 @@
 function emailSend() {
   confirmationPopup();
 
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Call Review Scorecard');
+  const SS = SpreadsheetApp.getActiveSpreadsheet();
+  const SHEET = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Rollup Data');
+    let headers = SHEET.getRange(1, 1, 1, SHEET.getLastColumn()).getValues();
+      let callCol = headers[0].indexOf('Call Link')+1;
+      let nameCol = headers[0].indexOf("Specialist Name")+1;
+      let sentEmail = headers[0].indexOf('Send Email?')+1; 
+      let cardLink = headers[0].indexOf('Scorecard Link')+1;
+      /*
+        let complianceCol = headers[0].indexOf('Notes for non-compliant language (include timestamp, transcript, and applicable notes) + SUGGESTED LANGUAGE ("SL: ")')+1; 
+        let compGuru = headers[0].indexOf("Compliance Guru card(s) referenced ")+1;
+        let accuracyCol = headers[0].indexOf('Notes for inaccurate language (include timestamp, transcript, and applicable notes) + SUGGESTED LANGUAGE ("SL: ")')+1;
+        let accuracyGuru = headers[0].indexOf('Accuracy Guru card(s) referenced ')+1;
+        let compCheck = headers[0].indexOf('Compliant / Noncompliant')+1;
+        let accCheck = headers[0].indexOf('Accurate / Inaccurate')+1;
+      */
+  
+    let activeRow = SHEET.getActiveRange().getRow();
     let user = Session.getActiveUser().getEmail();
-    let name = sheet.getRange(3,2).getDisplayValue();
-    let call = sheet.getRange(5,2).getValue();
-    let lastRow = ss.getRangeByName('dataInput').getLastRow();
-    let arrayQu = [];
-    let arraySL = [];
+    let name = SHEET.getRange(activeRow,nameCol).getValue();
+    let call = SHEET.getRange(activeRow,callCol).getDisplayValue();
+    let lastCol = SHEET.getLastColumn();
+    let card = SHEET.getRange(activeRow,cardLink).getDisplayValue();
+    let arrayComp = [];
+    let arrayOpp = [];
     let arrayGuru = [];
     let arrayLearning = [];
+    let arrayCategory = [];
+    let arrayNumber =[];
 
   // loop to separate quotes and notes from the cell
-  for (let i=2; i<=lastRow; i++){
-    if (sheet.getRange([i],2).getValue()=='No'){
-      let timeStamp = sheet.getRange([i+1],2).getValue();
-      let suggLang = sheet.getRange([i+2],2).getValue();
-      let link = sheet.getRange([i+3],2).getDisplayValue();
-      arrayQu.push(timeStamp);
-      arraySL.push(suggLang);
-      arrayGuru.push(link);
+  for (let i=2; i<=lastCol; i++){
+    if (SHEET.getRange(activeRow,[i]).getValue()=='No'){
+      let complianceNotes = SHEET.getRange(activeRow,[i+1]).getValue();
+        Logger.log(complianceNotes);
+      //let accuracyNotes = SHEET.getRange(activeRow,accuracyCol).getValue();
+      let link = SHEET.getRange(activeRow,[i+2]).getDisplayValue();
+      //let accLink = SHEET.getRange(activeRow,accuracyGuru).getDisplayValue();
+        if (complianceNotes !== ''){
+      arrayComp.push(complianceNotes);
+      arrayCategory.push(SHEET.getRange(1,[i]).getDisplayValue());
+      }
+        /*
+          if (accuracyNotes !== ''){
+        arrayAcc.push(complianceNotes);}
+        */
+        if (link !== ''){
+      arrayGuru.push(link);}
+        /*
+          if (accLink !== ''){
+            arrayAcc.push(accLink);
+        
+        }*/
     }
+      
   };
-  
+  Logger.log(card);
   const TEMPLATE = HtmlService.createTemplateFromFile('emailTemplate');
     
         // pulls the first name from column 1 based on the active cell
     TEMPLATE.name = name.split(' ')[0];
         // pulls quotes and notes from the applicable array
-    for (let j=0;j<=arrayQu.length;j++){
-      if (arrayQu[j]!==null){
-        let learningOpportunity = (arrayQu[j] + ' ' + arraySL[j] + ' ' + arrayGuru[j]);
-        arrayLearning.push(learningOpportunity);
+    for (let j=0;j<arrayComp.length;j++){
+      //if (arrayComp[j]!==null){
+        //let learningOpportunity = (arrayComp[j] +  ' This learning opportunity falls under the category of ' +arrayCategory[j]+' Please review this resource for more information: '+ arrayGuru[j]+'.');
+        arrayLearning.push(arrayComp[j] +  ' This learning opportunity falls under the category of ' +arrayCategory[j]+' Please review this resource for more information: '+ arrayGuru[j]+'.');
       }
-    }
+    //}
+    Logger.log(arrayLearning);
     TEMPLATE.quotes = (arrayLearning);
     TEMPLATE.call = call;
-    TEMPLATE.number = arrayQu.length;
+    TEMPLATE.number = arrayComp.length;
+    TEMPLATE.scorecard = card;
 
     const message = TEMPLATE.evaluate().getContent();
 
     let aliases = GmailApp.getAliases(); 
-      Logger.log(aliases); 
-      Logger.log(name);
-      GmailApp.sendEmail(user, 'Email Test', "",{
+      //Logger.log(aliases); 
+      //Logger.log(name);
+      GmailApp.sendEmail(user, '<Alert> Learning Opportunity', "",{
         name: 'QA',
         from: aliases[0],
         htmlBody: message,
-        attachments: [SpreadsheetApp.getActiveSpreadsheet().getAs(MimeType.PDF).setName(name + '_' + "Call Review Scorecard")]
+        //attachments: [SpreadsheetApp.getActiveSpreadsheet().getAs(MimeType.PDF).setName(name + '_' + "Call Review Scorecard")]
       });
-      sheet.getRange('D5').setValue('Email Sent');
+      SHEET.getRange(activeRow,sentEmail).setValue('Email Sent');
+      //SHEET.getActiveCell().offset(0,1).setValue(Utilities.formatDate(new Date(), "UTC+8", "MM-dd-yyyy"));
       
 
   function confirmationPopup() {
-      let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Call Review Scorecard');
+      let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Rollup Data');
       let ui = SpreadsheetApp.getUi();
-      let coachName =  sheet.getRange(3,2).getDisplayValue();
+      let activeRow = sheet.getActiveRange().getRow();
+      let coachName =  sheet.getRange(activeRow,3).getDisplayValue();
 
-    if (sheet.getRange('D5').getValue() == 'Email Sent'){ //checks for 'email sent' marker to prevent duplicates
+    if (sheet.getActiveCell().offset(0,-1).getDisplayValue() == '0'){
+      ui.alert(
+    '⚠️ There are no Learning Opportunities on this call ',
+    'Please check that you have selected the correct record.',
+      ui.ButtonSet.OK);
+      throw new Error('action cancelled');
+    }; 
+
+    if (sheet.getActiveCell().getValue()){
+      let response = ui.alert(
+    '⚠️ Please confirm you want to send this email to self ',
+    'Are you sure you want to compile and send the email for '+coachName+'?',
+      ui.ButtonSet.YES_NO);{
+      
+    if (response == ui.Button.NO) {
+      throw new Error("action cancelled");
+
+      } else if (sheet.getActiveCell().getValue() == 'Email Sent'){ //checks for 'email sent' marker to prevent duplicates
       let response = ui.alert(
     '⚠️ The email for '+coachName+' has already been sent',
     'Do you want to override and send again?',
@@ -67,20 +121,19 @@ function emailSend() {
     if (response == ui.Button.NO) { //choosing not to override action will cancel the script
       throw new Error("action cancelled");
       }else if (response == ui.Button.YES){ //choosing to override proceeds as normal, as if no email was sent
-      
+      return;
       let response = ui.alert(
     '⚠️ Please confirm you want to send this email to self ',
     'Are you sure you want to compile and send the email for '+coachName+'?',
       ui.ButtonSet.YES_NO);{
       
     if (response == ui.Button.NO) {
-      throw new Error("recheck");
+      throw new Error("action cancelled");
       }else if (response == ui.Button.YES){
         return;
         }
       }};
       }};
+  }}     
   }
-      
-    
-  }
+}
