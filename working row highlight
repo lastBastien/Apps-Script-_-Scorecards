@@ -2,32 +2,36 @@
 function onEdit(e) {
   let user = Session.getActiveUser();
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  let headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues();
+  let headers = sheet.getRange(3, 1, 1, sheet.getLastColumn()-1).getValues();
     let status = headers[0].indexOf('Status?')+1;
+    let statusCheck =  (e.range.rowStart != 1 && e.range.columnStart == status && e.range.getDisplayValue());
+    
 if (user){
-    if (e.range.rowStart != 1 && e.range.columnStart == status && e.range.getDisplayValue() == "working"){
+    if (e.range.rowStart != 3 && e.range.columnStart == status && e.range.getDisplayValue() == "working"){
   
       let range = e.range;
       //const sheet = range.getActiveSheet();
       const maxRows = sheet.getMaxRows();
       const maxColumns = sheet.getMaxColumns();
       const lastCol = sheet.getLastColumn();
-      sheet.getRange(1, 1, maxRows, maxColumns).setBackground(null);
+      //sheet.getRange(1, 1, maxRows, maxColumns).setBackground(null);
       
-  sheet.getRange(range.getRow(), 1, 1, lastCol).setBackground("lavender");
-    } else if (e.range.rowStart != 1 && e.range.columnStart == status && e.range.getDisplayValue() == ""){
+  sheet.getRange(range.getRow(), 2, 1, lastCol-1).setBackground("Moccasin");
+    }else{
   
       let range = e.range;
       //const sheet = range.getActiveSheet();
       const maxRows = sheet.getMaxRows();
       const maxColumns = sheet.getMaxColumns();
       const lastCol = sheet.getLastColumn();
-      sheet.getRange(1, 1, maxRows, maxColumns).setBackground(null);
-      
-  sheet.getRange(range.getRow(), 1, 1, lastCol).setBackground(null);
+      //sheet.getRange(1, 1, maxRows, maxColumns).setBackground(null);
+          
+  sheet.getRange(range.getRow(), 2, 1, lastCol-1).setBackground(null);
       /*e.range.setValue('Email Sent');
       e.range.offset(0,1).setValue('SUCCESS');
       emailSend();*/
     }
 }
 }
+
+
