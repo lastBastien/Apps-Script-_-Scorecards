@@ -1,103 +1,199 @@
 function emailSend() {
-  confirmationPopup();
+  var ui = SpreadsheetApp.getUi();
+  let toField = PropertiesService.getScriptProperties().getProperty('to');
+  let ccField = PropertiesService.getScriptProperties().getProperty('cc');
 
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Call Review Scorecard');
-  const SHEET2 = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Rollup Data');
-    let activeRow = SHEET2.getActiveRange().getRow();
+    let coachEmail = ui.prompt('Please enter the Specialist email address:', ui.ButtonSet.OK_CANCEL);
+    if (coachEmail.getSelectedButton() == ui.Button.OK){
+      toField = coachEmail.getResponseText();
+      PropertiesService.getScriptProperties().setProperty("to", toField);
+    }else if (coachEmail.getSelectedButton() == ui.Button.CANCEL){
+      throw new Error ('sending cancelled');
+    };        
+    //Logger.log(response);
+    
+  let managerEmail = ui.prompt("Please enter emails for manager, and manager's manager (separated by commas)", ui.ButtonSet.OK_CANCEL);
+    if (managerEmail.getSelectedButton() == ui.Button.OK){
+      ccField = managerEmail.getResponseText();
+      PropertiesService.getScriptProperties().setProperty("cc", ccField);           
+    }else if (managerEmail.getSelectedButton() == ui.Button.CANCEL){
+      throw new Error ('sending cancelled');
+    };
+
+  const SHEET = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Rollup Data');
+    //protections are set from the scorecard to prevent sending while a score is being submitted. Will not run if no scorecard is active.
+    if (SHEET.getProtections(SpreadsheetApp.ProtectionType.SHEET)=='Submission Lock'){
+      //let ui = SpreadsheetApp.getUi();
+      ui.alert('⚠️ A QAA Scorecard is being submitted. Please wait and try again later. ⚠️',
+      ui.ButtonSet.OK);
+      Logger.log(SHEET.getProtections(SpreadsheetApp.ProtectionType.SHEET));
+      return;
+    }else{
+
+  //Confirmation Popup
+
+      //let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Raw Rollup Data');
+      //let ui = SpreadsheetApp.getUi();
+      let activeRow = SHEET.getActiveRange().getRow();
+      let rowIndex = SHEET.getActiveRange().getRowIndex();
+      let coachName =  SHEET.getRange(activeRow,3).getDisplayValue();
+      let self = Session.getActiveUser();
+        
+      if (SHEET.getActiveCell().offset(0,-1).getDisplayValue() == ''){
+        ui.alert(
+      '⚠️ There is no record on row '+ rowIndex,
+      'Please check that you have selected the correct record.',
+        ui.ButtonSet.OK);
+        throw 'action cancelled';
+
+    
+    }else if (SHEET.getActiveCell().getValue()=='Email Sent'){
+
+      let response = ui.alert(
+    '⚠️ The email for '+coachName+' has already been sent',
+    'Please confirm you have selected the correct review.',
+      ui.ButtonSet.OK);{
+        throw 'action cancelled';
+      }
+      }
+      if (SHEET.getActiveCell().offset(0,-1).getDisplayValue() == '0'){
+      let response = ui.alert(
+    '⭐ There are no Learning Opportunities on this call for '+coachName+' ⭐',
+    'Would you like to send the "Gold Star Email" to:\n\n '+toField+'\n And CC: \n'+ccField,
+      ui.ButtonSet.YES_NO);
+        if (response == ui.Button.YES) {
+          positiveEmailSend();
+          throw 'Gold Star Email Sent';
+        } else if (response == ui.Button.NO){
+          throw "action cancelled";
+        }
+    }else if (SHEET.getActiveCell().getValue()){
+      let response = ui.alert(
+    '⚠️ Please confirm you want to compile and send this scorecard for '+coachName+' ⚠️',
+    'Are you sure you want to compile and send the email to:\n\n '+toField+'\n And CC: \n'+ccField+'?',
+      ui.ButtonSet.YES_NO);{
+      
+    if (response == ui.Button.NO) {
+      throw "action cancelled";
+    }else if (response == ui.Button.YES){
+      
+  
+    let headers = SHEET.getRange(1, 1, 1, SHEET.getLastColumn()).getValues();
+      let caseCol = headers[0].indexOf('Case Link')+1;
+      let nameCol = headers[0].indexOf("Specialist Name")+1;
+      let sentEmail = headers[0].indexOf('Send Email?')+1; 
+      let cardLink = headers[0].indexOf('Scorecard Link')+1;
+  
+    let activeRow = SHEET.getActiveRange().getRow();
     let user = Session.getActiveUser().getEmail();
-    let name = SHEET2.getRange(activeRow,4).getValue();
-    let call = SHEET2.getRange(activeRow,6).getDisplayValue();
-    let lastCol = SHEET2.getLastColumn();
-    let arrayQu = [];
-    let arraySL = [];
-    let arrayGuru = [];
-    let arrayLearning = [];
+    let name = SHEET.getRange(activeRow,nameCol).getValue();
+    let call = SHEET.getRange(activeRow,caseCol).getDisplayValue();
+    let lastCol = SHEET.getLastColumn();
+    let card = SHEET.getRange(activeRow,cardLink).getDisplayValue();
+    //arraComp is not the most accurate as it's not just compliance. Encompases any "No" on the scorecard
+    let arrayComp = [];
+      let arrayCompCat = [];
+      let arrayCompLink = []; 
+    let arrayOpp = [];
+      let arrayOppCat =[];
+      let arrayOppLink = [];
+    let arrayPos = [];
+      let arrayPosCat =[];
 
-  // loop to separate quotes and notes from the cell
+    let arrayCoaching = [];
+    let arrayLearning = [];
+    let arrayPositive = [];
+    
+
+  // loop to pull any NO measures from the call
   for (let i=2; i<=lastCol; i++){
-    if (SHEET2.getRange(activeRow,[i]).getValue()==='No'){
-      let timeStamp = SHEET2.getRange(activeRow,[i+1]).getValue();
-      let suggLang = SHEET2.getRange(activeRow,[i+2]).getValue();
-      let link = SHEET2.getRange(activeRow,[i+3]).getDisplayValue();
-        if (timeStamp !== ''){
-      arrayQu.push(timeStamp);}
-        if (suggLang !== ''){
-      arraySL.push(suggLang);}
-        if (link !== ''){
-      arrayGuru.push(link);}
-    }
+    if (SHEET.getRange(activeRow,[i]).getValue()=='No'){
+      let complianceNotes = SHEET.getRange(activeRow,[i+1]).getValue();
+      //let accuracyNotes = SHEET.getRange(activeRow,accuracyCol).getValue();
+      let link = SHEET.getRange(activeRow,[i+2]).getDisplayValue();
+      //let accLink = SHEET.getRange(activeRow,accuracyGuru).getDisplayValue();
+        if (complianceNotes !== ''){
+      arrayComp.push(complianceNotes);
+      arrayCompCat.push(SHEET.getRange(1,[i]).getDisplayValue());
+      //}
+        //if (link !== ''){
+      arrayCompLink.push(link);}
+    }   
   };
-  Logger.log(arraySL);
+    // loop to pull any COACHING OPPORTUNITY measures from the call
+  for (let k=2; k<=lastCol; k++){
+    if (SHEET.getRange(activeRow,[k]).getValue()=='Coaching Opportunity'){
+      let opportunityNotes = SHEET.getRange(activeRow,[k+1]).getValue();
+   
+      let oppLink = SHEET.getRange(activeRow,[k+2]).getDisplayValue();
+      //let accLink = SHEET.getRange(activeRow,accuracyGuru).getDisplayValue();
+        if (opportunityNotes !== ''){
+      arrayOpp.push(opportunityNotes);
+      arrayOppCat.push(SHEET.getRange(1,[k]).getDisplayValue());
+      }
+        if (oppLink !== ''){
+      arrayOppLink.push(oppLink);}
+    }
+  }
+    //loop to look for positive comments. Captures if the score is "Yes" AND there is a comment present for the measure.
+  for (let m=2; m<=lastCol; m++){
+    if (SHEET.getRange(activeRow,[m]).getValue()=='Yes' && SHEET.getRange(activeRow,[m+1]).getValue()!=''){
+      let positiveCallout = SHEET.getRange(activeRow,[m+1]).getValue();
+
+      arrayPos.push(positiveCallout);
+      arrayPosCat.push(SHEET.getRange(1,[m]).getDisplayValue());
+      }
+             
+  };
   const TEMPLATE = HtmlService.createTemplateFromFile('emailTemplate');
     
-        // pulls the first name from column 1 based on the active cell
+        // pulls the first name from column 1 based on the active row
     TEMPLATE.name = name.split(' ')[0];
-        // pulls quotes and notes from the applicable array
-    for (let j=0;j<arrayQu.length;j++){
-      if (arrayQu[j]!==null){
-        let learningOpportunity = (arrayQu[j] +  ' In order to support you, we have provided an example of ways to rephrase this language. Please review this option and connect with your manager if you have any questions. ' +arraySL[j]+' Please review this resource for more information: '+ arrayGuru[j]+'.');
-        arrayLearning.push(learningOpportunity);
-      }
+        // pulls quotes and notes for measures scored "NO" to the applicable array
+    for (let j=0;j<arrayComp.length;j++){
+        // pulls quotes and notes for measures scored "Coaching Opportunity" to the applicable array
+        //if else statement separates if there is a knowlege resource link present and if not, does not include
+        if (arrayComp[j] && arrayCompLink[j]){
+        arrayLearning.push([j+1]+')' + ' '+ arrayComp[j] +  ' This learning opportunity falls under the category of ' +arrayCompCat[j]+'. '+' Please review this resource for more information: '+ arrayCompLink[j]+'.'+'\n\n');
+      } else {
+        arrayLearning.push([j+1]+')' + ' '+ arrayComp[j] +  ' This learning opportunity falls under the category of '+arrayCompCat[j]+'.'+'\n\n');
+      }}
+    for (let l=0; l<arrayOpp.length; l++){
+        // operates identical to the Compliance array loops, but looks for "Coaching Opportunities"
+        if (arrayOpp[l] && arrayOppLink[l]){
+        arrayCoaching.push([l+1]+')'+' '+arrayOpp[l] +  ' This learning opportunity falls under the category of ' +arrayOppCat[l]+' Please review this resource for more information: '+ arrayOppLink[l]+'.'+'\n\n');
+      } else {
+        arrayCoaching.push([l+1]+')'+' '+arrayOpp[l] +  ' This learning opportunity falls under the category of ' +arrayOppCat[l]+'.'+'\n\n')
+      }}
+    // pulls quotes and notes for measures scored "YES" to the applicable array
+    for (let h=0;h<arrayPos.length;h++){
+      arrayPositive.push([h+1]+')'+' '+arrayPos[h] +  ' This is a good example of ' +arrayPosCat[h]+'!'+'\n\n');
     }
-    Logger.log(arrayLearning);
-    TEMPLATE.quotes = (arrayLearning);
+
+      //all template arrays have a null join to make the line breaks in the template look correct when email is sent
+    TEMPLATE.lo = arrayLearning.join('');
+    TEMPLATE.co = arrayCoaching.join('');
+    TEMPLATE.positive = arrayPositive.join('');
     TEMPLATE.call = call;
-    TEMPLATE.number = arrayQu.length;
+    TEMPLATE.LOnumber = arrayComp.length;
+    TEMPLATE.COnumber = arrayOpp.length;
+    TEMPLATE.scorecard = card;
 
     const message = TEMPLATE.evaluate().getContent();
 
     let aliases = GmailApp.getAliases(); 
-      Logger.log(aliases); 
-      Logger.log(name);
-      GmailApp.sendEmail(user, '<Alert> Learning Opportunity', "",{
+      GmailApp.sendEmail(toField, '<Alert> Learning Opportunity', "",{
+        cc: ccField,
+        bcc: 'qa@guild.com',
         name: 'QA',
-        from: aliases[0],
+        from: 'qa@guild.com',
         htmlBody: message,
-        //attachments: [SpreadsheetApp.getActiveSpreadsheet().getAs(MimeType.PDF).setName(name + '_' + "Call Review Scorecard")]
       });
-      sheet.getActiveCell().setValue('Email Sent');
+        //changes the checkbox to say "email sent" which the confirmationPopup will look for to prevent duplicate sends
+      SHEET.getRange(activeRow,sentEmail).setValue('Email Sent');
       
-
-  function confirmationPopup() {
-      let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Call Review Scorecard');
-      let SHEET2 = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Rollup Data')
-      let ui = SpreadsheetApp.getUi();
-      let activeRow = SHEET2.getActiveRange().getRow();
-      let coachName =  SHEET2.getRange(activeRow,4).getDisplayValue();
-
-    if (sheet.getActiveCell().getValue() == ''){
-      let response = ui.alert(
-    '⚠️ Please confirm you want to send this email to self ',
-    'Are you sure you want to compile and send the email for '+coachName+'?',
-      ui.ButtonSet.YES_NO);{
       
-    if (response == ui.Button.NO) {
-      throw new Error("recheck");
-      }else if (response == ui.Button.YES){
-        return;
-        }
-      }} else if (sheet.getActiveCell().getValue() == 'Email Sent'){ //checks for 'email sent' marker to prevent duplicates
-      let response = ui.alert(
-    '⚠️ The email for '+coachName+' has already been sent',
-    'Do you want to override and send again?',
-      ui.ButtonSet.YES_NO);{
-      
-    if (response == ui.Button.NO) { //choosing not to override action will cancel the script
-      throw new Error("action cancelled");
-      }else if (response == ui.Button.YES){ //choosing to override proceeds as normal, as if no email was sent
-      
-      let response = ui.alert(
-    '⚠️ Please confirm you want to send this email to self ',
-    'Are you sure you want to compile and send the email for '+coachName+'?',
-      ui.ButtonSet.YES_NO);{
-      
-    if (response == ui.Button.NO) {
-      throw new Error("recheck");
-      }else if (response == ui.Button.YES){
-        return;
-        }
       }};
-      }};
-  }     
-}
+  }}     
+  }
+    
